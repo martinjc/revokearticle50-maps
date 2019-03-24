@@ -16,7 +16,7 @@
             margin: 0px;
             padding: 0px;
 
-            height: 90%;
+            height: 90vh;
             width: 100%;
 
             background-color: #eeeeee;
@@ -61,6 +61,7 @@
 
     </div>
     <div id="about">
+        <p>Constituencies are coloured according to the winner of the seat at 2017 General Election. In darker coloured constituencies there are currently more signatories to the 'Revoke Article 50' petition than the size of the majority won by the MP in the 2017 election. This means nothing as we don't know what the overlap between voters for each party in the 2017 election and signatories of the petition is.</p>
         <p>Created by <a href="https://twitter.com/martinjc">Martin Chorley</a></p>
         <p>Constituency electorate data from <a href="https://researchbriefings.parliament.uk/ResearchBriefing/Summary/CBP-7979">parliament.uk</a>, released under the <a href="https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/">Open Parliament Licence</a></p>
         <p>Petition data from <a href="https://petition.parliament.uk/petitions/241584.json">parliament.uk</a> released under <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence 3.0</a></p>
@@ -128,7 +129,7 @@
             if (signees > majority) {
                 opacity = 1.0;
             } else {
-                opacity = 0.2;
+                opacity = 0.3;
             }
             node.style("opacity", opacity);
         }
@@ -153,8 +154,8 @@
                 set_opacity(active, d);
                 active.style("stroke", "#fff");
                 active = d3.select(this);
-                active.style("opacity", 0.1)
-                active.style("stroke", "#c0c0c0");
+                active.style("opacity", 0.3)
+                active.style("stroke", "#000");
 
                 d3.select("#info")
                     .classed("active", true)
