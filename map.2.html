@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>UK Parliament Map</title>
+
+    <!-- Mobile views -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans:300' rel='stylesheet' type='text/css'>
+    <style>
+        html,
+        body,
+        #vis {
+
+            margin: 0px;
+            padding: 0px;
+
+            height: 90%;
+            width: 100%;
+
+            background-color: #eeeeee;
+
+            position: relative;
+
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        #about {
+            width: 80%;
+            margin: auto;
+        }
+
+        .area {
+            stroke: #000;
+            stroke-width: .1px;
+        }
+
+        #info {
+            padding: 10px;
+            position: absolute;
+            visibility: hidden;
+            z-index: 10;
+        }
+
+        #info.active {
+            visibility: visible;
+            background-color: #eee;
+            opacity: 0.9;
+        }
+
+        span {
+            font-weight: 900;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="vis">
+
+    </div>
+    <div id="about">
+        <p>Created by <a href="https://twitter.com/martinjc">Martin Chorley</a></p>
+        <p>Constituency electorate data from <a href="https://researchbriefings.parliament.uk/ResearchBriefing/Summary/CBP-7979">parliament.uk</a>, released under the <a href="https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/">Open Parliament Licence</a></p>
+        <p>Petition data from <a href="https://petition.parliament.uk/petitions/241584.json">parliament.uk</a> released under <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence 3.0</a></p>
+        <p>Hexmap data from <a href="https://github.com/odileeds/hexmaps">ODI Leeds</a>, released under the MIT Licence</p>
+    </div>
+    <div id="info">
+        <h1 id="con_name"></h1>
+        <p>This is a <span id="party_name"></span> constituency in <span id="county_name"></span></p>
+        <p>Majority in 2017 General Election: <span id="majority"></span></p>
+        <p>Signees of Revoke Article 50 petition: <span id="signees"></span></p>
+    </div>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/d3/4.7.1/d3.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/d3-queue/3.0.4/d3-queue.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/topojson/2.2.0/topojson.min.js"></script>
+    <script src="d3-hexjson.min.js"></script>
+    <script>
+        let party_details = {
+            Lab: { name: 'Labour', colour: '#DC241f' },
+            Con: { name: 'Conservative', colour: '#0087DC' },
+            SNP: { name: 'Scottish National Party', colour: '#FFFF00' },
+            Green: { name: 'Green Party', colour: '#6AB023' },
+            DUP: { name: 'Democratic Unionist Party', colour: '#D46A4C' },
+            Ind: { name: 'Independent', colour: '#DDDDDD' },
+            LD: { name: 'Liberal Democrat', colour: '#FDBB30' },
+            PC: { name: 'Plaid Cymru', colour: '#008142' },
+            SF: { name: 'Sinn Fein', colour: '#008800' },
+            Spk: { name: 'Speaker', colour: '#DDDDDD' }
+        }
+
+        // dimensions of visualisation
+        var width;
+        var height;
+
+        const margin = {
+            top: 30, bottom: 30, left: 50, right: 50
+        };
+
+        // 'svg' to draw in, 'g' element to group everything together
+        var svg;
+        var g;
+
+        // projection to convert from coordinates to pixels
+        var projection;
+        // path function to create line paths
+        var path;
+
+        var cons_data;
+        var active = d3.select(null);
+
+        var revoke_data;
+
+        function set_opacity(node, d) {
+            var opacity;
+            let majority = cons_data.filter(c => {
+                return c.ons_id === d.key;
+            })[0].majority;
+
+            let signees = revoke_data.filter(r => {
+                return r.ons_code === d.key;
+            })[0].signature_count;
+
+            if (signees > majority) {
+                opacity = 1.0;
+            } else {
+                opacity = 0.2;
+            }
+            node.style("opacity", opacity);
+        }
+
+        function reset(d) {
+            set_opacity(active, d);
+            active.style("stroke", "#fff");
+            active = d3.select(null)
+
+            d3.select("#info")
+                .classed("active", false)
+                .style("top", height + "px")
+                .style("left", width + "px");
+
+        }
+
+
+        function clicked(d) {
+            if (active.node() === this) {
+                reset(d);
+            } else {
+                set_opacity(active, d);
+                active.style("stroke", "#fff");
+                active = d3.select(this);
+                active.style("opacity", 0.1)
+                active.style("stroke", "#c0c0c0");
+
+                d3.select("#info")
+                    .classed("active", true)
+                    .style("top", "30px")
+                    .style("left", width / 2 + "px");
+
+                var party_name = "";
+                var county_name = "";
+                var con_name = "";
+                var majority = "";
+                var signees = "";
+
+                let constituency = cons_data.filter(c => {
+                    return c.ons_id === d.key;
+                })[0];
+
+                party_name = party_details[constituency.first_party].name;
+                con_name = constituency.constituency_name;
+                county_name = constituency.county_name;
+                majority = constituency.majority;
+                signees = revoke_data.filter(r => {
+                    return r.ons_code === d.key;
+                })[0].signature_count;
+
+                d3.select("#con_name")
+                    .text(con_name);
+
+                d3.select("#party_name")
+                    .text(party_name);
+
+                d3.select("#county_name")
+                    .text(county_name);
+
+                d3.select('#majority')
+                    .text(majority);
+
+                d3.select('#signees')
+                    .text(signees);
+            }
+        }
+
+
+
+        function draw(wpcs) {
+
+            // Render the hexes
+            var hexes = d3.renderHexJSON(wpcs, width, height);
+
+            // Bind the hexes to g elements of the svg and position them
+            var hexmap = svg
+                .selectAll("g")
+                .data(hexes)
+                .enter()
+                .append("g")
+                .attr("transform", function (hex) {
+                    return "translate(" + hex.x + "," + hex.y + ")";
+                });
+
+            // Draw the polygons around each hex's centre
+            hexmap
+                .append("polygon")
+                .attr("points", function (hex) { return hex.points; })
+                .attr("stroke", "white")
+                .attr("stroke-width", "2")
+                .attr("fill", function (d) {
+                    let winning_party = cons_data.filter(c => {
+                        return c.ons_id === d.key;
+                    })[0].first_party;
+
+                    return party_details[winning_party].colour;
+                    return "#ffffff";
+                })
+                .attr("opacity", function (d) {
+                    let majority = cons_data.filter(c => {
+                        return c.ons_id === d.key;
+                    })[0].majority;
+
+                    let signees = revoke_data.filter(r => {
+                        return r.ons_code === d.key;
+                    })[0].signature_count;
+
+                    if (signees > majority) {
+                        return 1.0;
+                    } else {
+                        return 0.2;
+                    }
+                })
+                .attr("id", function (d) { return d.key; })
+                .on("click", clicked);
+
+        }
+
+        // initialise our visualisation
+        function init() {
+
+            width = document.getElementById("vis").clientWidth;
+            height = document.getElementById("vis").clientHeight;
+
+            svg = d3.select("#vis")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+            width = width - margin.left - margin.right;
+            height = height - margin.top - margin.bottom;
+
+            d3.queue()
+                .defer(d3.json, "constituencies.hexjson")
+                .defer(d3.csv, "ge2017.csv")
+                .defer(d3.json, "https://petition.parliament.uk/petitions/241584.json")
+                .await(function (error, boundary_data, mp_data, petition_data) {
+                    cons_data = mp_data;
+                    revoke_data = petition_data.data.attributes.signatures_by_constituency;
+                    console.log(revoke_data);
+                    draw(boundary_data);
+                });
+        }
+
+        init();
+
+        function stopped() {
+            if (d3.event.defaultPrevented) {
+                d3.event.stopPropagation();
+            }
+        }
+
+
+    </script>
+
+</body>
+
+</html>
