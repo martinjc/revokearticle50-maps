@@ -282,7 +282,6 @@
                 .await(function (error, boundary_data, mp_data, petition_data) {
                     cons_data = mp_data;
                     revoke_data = petition_data.data.attributes.signatures_by_constituency;
-                    console.log(revoke_data);
                     draw(boundary_data);
                 });
         }
